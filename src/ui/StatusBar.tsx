@@ -12,7 +12,7 @@ export function StatusBar({ fps, activeModule }: Props) {
         <Activity size={15} />
         {fps.toFixed(0)} FPS
       </span>
-      <span>68 x 44 RGB</span>
+      <span>69 x 45 RGB</span>
       <span>
         <Maximize2 size={15} />
         1920 x 1080 full-grid fit

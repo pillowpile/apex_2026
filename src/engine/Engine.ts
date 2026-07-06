@@ -1,4 +1,4 @@
-import { Framebuffer, LOGICAL_HEIGHT, LOGICAL_WIDTH } from "./Framebuffer";
+import { Framebuffer, isPyramidPixel, LOGICAL_HEIGHT, LOGICAL_WIDTH } from "./Framebuffer";
 import { getDefaultParameters, ParameterValues } from "./parameters";
 import { ModuleContext, PixelModule } from "./types";
 import { Noise } from "../utilities/noise";
@@ -39,6 +39,7 @@ export class Engine {
       frame: this.frame,
       random: this.random,
       noise: this.noise,
+      isPyramid: isPyramidPixel,
       palettes,
     };
   }

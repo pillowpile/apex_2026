@@ -9,8 +9,10 @@ This project is **not a single artwork** and **not a single animation**.
 It is a long-term creative platform for building, testing and presenting
 procedural pixel-based systems for a physical installation.
 
-The installation consists of a **44 × 68 matrix of squares**, where
-every pyramid represents exactly one RGB pixel.
+The installation consists of a **45 × 69 notched matrix of squares** — a
+69 × 45 bounding box with a 21-wide × 5-deep notch cut from the top-center,
+for exactly **3,000** real pyramids — where every pyramid represents exactly
+one RGB pixel.
 
 The engine should become an expandable playground where new behaviors,
 simulations, creatures and visual experiments can be added indefinitely.
@@ -70,8 +72,12 @@ parameters
 Output:
 
 ``` ts
-RGB[44][68]
+RGB[45][69]
 ```
+
+Cells inside the top-center notch (columns 24-45, rows 0-5) are not real
+pyramids; modules that scan the full rectangle or wrap/spawn across it should
+check `isPyramid(x, y)` rather than assuming every cell is drawable.
 
 Every module should therefore be interchangeable.
 
@@ -231,7 +237,7 @@ All modules render into one shared framebuffer.
 
 Logical resolution:
 
-**44 × 68 pixels**
+**45 × 69 pixels** (notched — see Vision section above; 3,000 real pyramids)
 
 Pixels should always remain crisp.
 
@@ -246,15 +252,15 @@ The engine should support a standard **1920 × 1080** output canvas.
 For a landscape output, the matrix should be treated as:
 
 ``` text
-68 columns × 44 rows
+69 columns × 45 rows
 ```
 
-The full **68 columns × 44 rows** matrix should be visible.
+The full **69 columns × 45 rows** matrix should be visible.
 
 This means:
 
 ``` text
-screen pixel size per logical pixel: 1080 / 44 = 24.545...
+screen pixel size per logical pixel: 1080 / 45 = 24 exactly
 ```
 
 Pixels must remain square.
@@ -262,7 +268,7 @@ Pixels must remain square.
 Therefore the full logical image becomes:
 
 ``` text
-width: 68 × 24.545... = 1669.091... px
+width: 69 × 24 = 1656 px
 height: 1080 px
 ```
 
@@ -270,16 +276,16 @@ The renderer should therefore provide a **full-grid 1080p viewport mode**:
 
 ``` text
 canvas: 1920 × 1080
-logical grid: 68 × 44
-scale: 1080 / 44
-active image: 1669.091... × 1080
+logical grid: 69 × 45
+scale: 1080 / 45 = 24
+active image: 1656 × 1080
 horizontal position: centered
 vertical position: centered
-visible result: complete 68 × 44 grid with black side fields
-background: black where no image exists
+visible result: complete 69 × 45 grid (notch rendered black) with black side fields
+background: black where no image exists, including the notch
 ```
 
-In this mode, preserving the full 68 × 44 square grid takes priority over
+In this mode, preserving the full 69 × 45 square grid takes priority over
 filling the entire 1920 px output width.
 
 No blur.

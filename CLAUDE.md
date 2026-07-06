@@ -2,14 +2,26 @@
 
 Guidance for Claude Code (and other agents) working in this repository.
 
+## Subagent usage
+
+- Do not spawn subagents for simple tasks.
+- Use subagents only for long-running or parallelizable work.
+- Prefer sequential execution unless parallelism provides a clear benefit.
+- Reuse existing context instead of delegating work.
+
 ## What this project is
 
 PLAY/BRAIN Pixel Engine — a modular, realtime, browser-based engine for
-procedural pixel animation, targeting a physical installation built from a
-**68 × 44 matrix of RGB pyramids** (one pyramid = one RGB pixel). It's a
-creative-coding platform (think Processing / p5.js / TouchDesigner), not a
-single artwork: the whole point is that new self-contained visual "modules"
-keep getting added over time.
+procedural pixel animation, targeting a physical installation built from RGB
+pyramids (one pyramid = one RGB pixel). It's a creative-coding platform
+(think Processing / p5.js / TouchDesigner), not a single artwork: the whole
+point is that new self-contained visual "modules" keep getting added over
+time.
+
+The physical matrix is **not a plain rectangle**. It's a 69 x 45 bounding box
+with a 21-wide x 5-deep notch cut out of the top-center (columns 24-45, rows
+0-5), for exactly **3,000** real pyramids. See "The module contract" below
+for how this shape is exposed to modules.
 
 Full design intent lives in
 [PLAY_BRAIN_Pixel_Engine_Vision.md](PLAY_BRAIN_Pixel_Engine_Vision.md) and
@@ -35,9 +47,10 @@ npm run preview   # serve the production build
 
 ```
 engine/       Engine.ts (tick loop, active module, params), Framebuffer.ts
-              (68x44x3 Uint8ClampedArray + draw primitives), modules.ts
-              (module registry array), parameters.ts (schema types + UI
-              defaults), types.ts (PixelModule, ModuleContext contracts)
+              (69x45x3 Uint8ClampedArray + draw primitives + isPyramidPixel
+              notch mask), modules.ts (module registry array), parameters.ts
+              (schema types + UI defaults), types.ts (PixelModule,
+              ModuleContext contracts)
 modules/      One directory per visual module: clock/, conway/, creatures/,
               flow/, neonBars/, noise/. Each exports a single PixelModule.
 renderer/     CanvasRenderer.ts — draws the framebuffer into the logical
@@ -78,12 +91,26 @@ type PixelModule = {
 };
 ```
 
-`ModuleContext` gives every module: fixed `width`/`height` (68/44), running
+`ModuleContext` gives every module: fixed `width`/`height` (69/45), running
 `time`/`frame`, a seeded `random` (`Random`, resets on module switch), `noise`
-(`value2D`/`fbm2D`), and `palettes`. Modules keep their own state as
-module-scope `let` variables reset in `init` (see
+(`value2D`/`fbm2D`), `isPyramid(x, y)`, and `palettes`. Modules keep their own
+state as module-scope `let` variables reset in `init` (see
 [conwayModule.ts](src/modules/conway/conwayModule.ts) — this is the
 established pattern, not a workaround).
+
+**`ctx.isPyramid(x, y)` — the notch mask.** The `width x height` rectangle
+isn't fully real (see the notch described above). `Framebuffer.setPixel`/
+`addPixel` already silently refuse writes into the notch, so a module that
+ignores this will never visually leak into it — but any module that scans
+the full rectangle (a `for y < height, for x < width` paint loop) or does
+wrap-around/spawn/bounce logic (Conway's toroidal neighbor count, particle
+wrap in `windModule`/`flowModule`, spawn/bounce in `polkaModule`) should
+guard with `ctx.isPyramid(x, y)` so the *simulation* also treats the notch as
+real absence, not just an invisible-but-otherwise-normal cell. See
+[conwayModule.ts](src/modules/conway/conwayModule.ts) (permanently-dead
+notch cells, wrap-around skips non-pyramid neighbors) and
+[flowModule.ts](src/modules/flow/flowModule.ts) (respawn on landing in the
+notch) for the established patterns.
 
 ### Adding a new module — the only workflow that matters here
 
@@ -94,7 +121,9 @@ established pattern, not a workaround).
    (`number`/`boolean`/`color`/`select`/`palette`). The parameter panel is
    generated from this schema — never hand-write per-module UI.
 3. Implement `render` (required); add `init`/`update`/`dispose` only if the
-   module needs persistent state or its own timestep.
+   module needs persistent state or its own timestep. If `render` (or
+   `update`) scans the full rectangle or does wrap-around/spawn/bounce logic,
+   guard it with `ctx.isPyramid(x, y)` — see the notch mask note above.
 4. Add one line to the `starterModules` array in
    [src/engine/modules.ts](src/engine/modules.ts). This is the single
    registration point — it drives the module browser list and the `1`-`N`
@@ -144,6 +173,8 @@ If a request implies functionality beyond a single module:
 - Parameter values arrive as `ParameterValues` (`number | boolean | string`)
   and are narrowed with `Number(...)`/`String(...)` at point of use inside
   modules — don't add a separate typed-config layer.
-- Framebuffer coordinates: `(0,0)` top-left, `x` in `[0, 68)`, `y` in
-  `[0, 44)`. `setPixel`/`fillRect` clip silently out of range; `addPixel`
-  clamps additive color to 255.
+- Framebuffer coordinates: `(0,0)` top-left, `x` in `[0, 69)`, `y` in
+  `[0, 45)`. `setPixel`/`fillRect`/`addPixel` clip silently out of range
+  *and* silently refuse the top-center notch (see `isPyramidPixel` in
+  [Framebuffer.ts](src/engine/Framebuffer.ts)); `addPixel` clamps additive
+  color to 255.

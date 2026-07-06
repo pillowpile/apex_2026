@@ -11,8 +11,15 @@ type Particle = {
 let particles: Particle[] = [];
 
 function resetParticle(particle: Particle, ctx: Parameters<NonNullable<PixelModule["init"]>>[0]) {
-  particle.x = ctx.random.range(0, ctx.width);
-  particle.y = ctx.random.range(0, ctx.height);
+  let x = 0;
+  let y = 0;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    x = ctx.random.range(0, ctx.width);
+    y = ctx.random.range(0, ctx.height);
+    if (ctx.isPyramid(Math.floor(x), Math.floor(y))) break;
+  }
+  particle.x = x;
+  particle.y = y;
   particle.life = ctx.random.range(0.2, 1);
 }
 
@@ -45,7 +52,8 @@ export const flowModule: PixelModule = {
         particle.x < 0 ||
         particle.x >= ctx.width ||
         particle.y < 0 ||
-        particle.y >= ctx.height
+        particle.y >= ctx.height ||
+        !ctx.isPyramid(Math.floor(particle.x), Math.floor(particle.y))
       ) {
         resetParticle(particle, ctx);
       }

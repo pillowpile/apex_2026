@@ -1,8 +1,10 @@
 # PLAY/BRAIN Pixel Engine
 
 A modular, realtime, browser-based engine for procedural pixel animation, built
-for a physical installation made of a **68 × 44 matrix of RGB pyramids**
-(one pyramid = one RGB pixel).
+for a physical installation made of RGB pyramids (one pyramid = one RGB
+pixel), arranged in a **69 × 45 notched matrix**: a 69×45 bounding box with a
+21-wide × 5-deep notch cut from the top-center, for exactly **3,000** real
+pyramids.
 
 The engine is a creative-coding platform in the spirit of Processing, p5.js,
 or TouchDesigner — not a single artwork. New visual behaviors ("modules") can
@@ -46,7 +48,7 @@ There is no test suite or linter configured yet.
   to switch instantly. Switching never restarts the app.
 - **Parameter panel** (right) — sliders/toggles/selects generated from each
   module's parameter schema; changes apply live.
-- **Logical preview** — the raw 68 × 44 grid, integer-scaled, crisp
+- **Logical preview** — the raw 69 × 45 grid, integer-scaled, crisp
   (nearest-neighbor, no smoothing).
 - **1080p output view** — the same grid fit into a 1920×1080 canvas with
   black bars, matching what you'd feed to a projector or capture card. It
@@ -69,11 +71,12 @@ palettes/     Shared named color palettes
 ```
 
 **Data flow:** `Engine.tick(dt)` calls the active module's `update` then
-`render`, writing into a single shared `Framebuffer` (a `68 × 44 × 3`
+`render`, writing into a single shared `Framebuffer` (a `69 × 45 × 3`
 `Uint8ClampedArray`). `CanvasRenderer` reads that framebuffer every animation
-frame and draws it into the preview canvas and the 1080p output canvas.
-Nothing about output devices (projectors, Syphon/Spout/NDI) lives in a module
-— modules only ever produce pixel data.
+frame and draws it into the preview canvas and the 1080p output canvas,
+masking the top-center notch to black regardless of what a module wrote
+there. Nothing about output devices (projectors, Syphon/Spout/NDI) lives in a
+module — modules only ever produce pixel data.
 
 ### The module contract
 
@@ -93,12 +96,17 @@ export type PixelModule = {
 ```
 
 `ModuleContext` ([src/engine/types.ts](src/engine/types.ts)) hands every
-module the same shared toolkit: fixed `width`/`height` (68/44), running
-`time`/`frame` counters, a seeded `random`, a `noise` (value noise + fbm), and
-the `palettes` library. Modules should stay pure with respect to these — no
-DOM access, no globals beyond module-local state (see the `let grid` pattern
-in [conwayModule.ts](src/modules/conway/conwayModule.ts) for how modules keep
-their own instance state between `init`/`update`/`render` calls).
+module the same shared toolkit: fixed `width`/`height` (69/45), running
+`time`/`frame` counters, a seeded `random`, a `noise` (value noise + fbm),
+`isPyramid(x, y)` (true if that cell is a real pyramid, false inside the
+notch), and the `palettes` library. Modules should stay pure with respect to
+these — no DOM access, no globals beyond module-local state (see the `let
+grid` pattern in [conwayModule.ts](src/modules/conway/conwayModule.ts) for
+how modules keep their own instance state between `init`/`update`/`render`
+calls). Any module that scans the full rectangle or does wrap-around/spawn
+logic should guard with `ctx.isPyramid(x, y)` so the notch behaves like real
+absence, not just an invisible cell — see `conwayModule.ts` and
+`flowModule.ts` for the established pattern.
 
 ### Adding a new module
 

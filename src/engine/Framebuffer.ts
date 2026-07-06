@@ -1,5 +1,15 @@
-export const LOGICAL_WIDTH = 68;
-export const LOGICAL_HEIGHT = 44;
+export const LOGICAL_WIDTH = 69;
+export const LOGICAL_HEIGHT = 45;
+
+const NOTCH_X_START = 24;
+const NOTCH_WIDTH = 21;
+const NOTCH_HEIGHT = 5;
+
+export function isPyramidPixel(x: number, y: number): boolean {
+  if (x < 0 || x >= LOGICAL_WIDTH || y < 0 || y >= LOGICAL_HEIGHT) return false;
+  const inNotch = y < NOTCH_HEIGHT && x >= NOTCH_X_START && x < NOTCH_X_START + NOTCH_WIDTH;
+  return !inNotch;
+}
 
 export type RGB = [number, number, number];
 
@@ -26,7 +36,7 @@ export class Framebuffer {
   setPixel(x: number, y: number, color: RGB) {
     const ix = Math.floor(x);
     const iy = Math.floor(y);
-    if (ix < 0 || ix >= this.width || iy < 0 || iy >= this.height) return;
+    if (!isPyramidPixel(ix, iy)) return;
     const index = (iy * this.width + ix) * 3;
     this.data[index] = color[0];
     this.data[index + 1] = color[1];
@@ -36,7 +46,7 @@ export class Framebuffer {
   addPixel(x: number, y: number, color: RGB, alpha = 1) {
     const ix = Math.floor(x);
     const iy = Math.floor(y);
-    if (ix < 0 || ix >= this.width || iy < 0 || iy >= this.height) return;
+    if (!isPyramidPixel(ix, iy)) return;
     const index = (iy * this.width + ix) * 3;
     this.data[index] = Math.min(255, this.data[index] + color[0] * alpha);
     this.data[index + 1] = Math.min(255, this.data[index + 1] + color[1] * alpha);
