@@ -1,4 +1,4 @@
-import { Framebuffer, LOGICAL_HEIGHT, LOGICAL_WIDTH } from "../engine/Framebuffer";
+import { Framebuffer, isPyramidPixel, LOGICAL_HEIGHT, LOGICAL_WIDTH } from "../engine/Framebuffer";
 
 export class CanvasRenderer {
   private sourceCanvas = document.createElement("canvas");
@@ -51,12 +51,16 @@ export class CanvasRenderer {
   }
 
   private writeSource(framebuffer: Framebuffer) {
-    for (let source = 0, target = 0; source < framebuffer.data.length; source += 3) {
-      this.imageData.data[target] = framebuffer.data[source];
-      this.imageData.data[target + 1] = framebuffer.data[source + 1];
-      this.imageData.data[target + 2] = framebuffer.data[source + 2];
-      this.imageData.data[target + 3] = 255;
-      target += 4;
+    for (let y = 0; y < LOGICAL_HEIGHT; y += 1) {
+      for (let x = 0; x < LOGICAL_WIDTH; x += 1) {
+        const source = (y * LOGICAL_WIDTH + x) * 3;
+        const target = (y * LOGICAL_WIDTH + x) * 4;
+        const active = isPyramidPixel(x, y);
+        this.imageData.data[target] = active ? framebuffer.data[source] : 0;
+        this.imageData.data[target + 1] = active ? framebuffer.data[source + 1] : 0;
+        this.imageData.data[target + 2] = active ? framebuffer.data[source + 2] : 0;
+        this.imageData.data[target + 3] = 255;
+      }
     }
     this.sourceContext.putImageData(this.imageData, 0, 0);
   }

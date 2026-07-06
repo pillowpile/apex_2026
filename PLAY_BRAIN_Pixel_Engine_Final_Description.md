@@ -9,10 +9,13 @@ pyramids.
 The physical matrix contains:
 
 ```text
-68 columns x 44 rows
+69 columns x 45 rows, bounding box
+minus a 21 x 5 notch cut from the top-center (columns 24-45, rows 0-5)
+= 3000 real pyramids
 ```
 
-Each pyramid is one RGB pixel.
+Each pyramid is one RGB pixel. The notch is a real physical absence, not a
+rendering choice — no pyramid exists there.
 
 The engine is not a single artwork, animation, or projection-mapping tool. It
 is a reusable creative-coding platform for building, testing, combining, and
@@ -56,8 +59,8 @@ for the shared logical framebuffer.
 The canonical engine resolution is:
 
 ```text
-width: 68 pixels
-height: 44 pixels
+width: 69 pixels
+height: 45 pixels
 format: RGB
 ```
 
@@ -66,8 +69,13 @@ All modules render into this logical framebuffer.
 The framebuffer represents the physical pyramid matrix directly:
 
 ```text
-framebuffer[x][y] -> one physical RGB pyramid
+framebuffer[x][y] -> one physical RGB pyramid, if (x, y) is not in the notch
 ```
+
+Cells inside the top-center notch (columns 24-45, rows 0-5) do not
+correspond to any physical pyramid. The framebuffer refuses writes there, and
+modules that scan the full rectangle or do wrap-around/spawn logic should
+check whether a cell is real before treating it as one.
 
 Pixels must remain crisp at every output size.
 
@@ -87,19 +95,19 @@ The primary video output target is:
 1920 x 1080
 ```
 
-The full 68 x 44 logical grid must be visible in the 1920 x 1080 output while
+The full 69 x 45 logical grid must be visible in the 1920 x 1080 output while
 preserving square pixels.
 
 Therefore:
 
 ```text
-screen pixel size = 1080 / 44 = 24.545...
+screen pixel size = 1080 / 45 = 24 exactly
 ```
 
 The full logical image becomes:
 
 ```text
-output width: 68 x 24.545... = 1669.091... px
+output width: 69 x 24 = 1656 px
 output height: 1080 px
 ```
 
@@ -107,16 +115,16 @@ The default 1080p output mode is therefore a full-grid fit viewport:
 
 ```text
 canvas: 1920 x 1080
-logical grid: 68 x 44
-scale: 1080 / 44
-active image: 1669.091... x 1080
+logical grid: 69 x 45
+scale: 1080 / 45 = 24
+active image: 1656 x 1080
 horizontal position: centered
 vertical position: centered
-visible result: complete 68 x 44 grid with black side fields
-background: black where no active image exists
+visible result: complete 69 x 45 grid (notch rendered black) with black side fields
+background: black where no active image exists, including the notch
 ```
 
-In this mode, preserving the full 68 x 44 square grid has priority over filling
+In this mode, preserving the full 69 x 45 square grid has priority over filling
 the entire 1920 px output width.
 
 ## Module Interface
@@ -147,15 +155,20 @@ Modules receive a shared context with stable utilities:
 
 ```ts
 type ModuleContext = {
-  width: 68;
-  height: 44;
+  width: 69;
+  height: 45;
   time: number;
   frame: number;
   random: Random;
   noise: Noise;
+  isPyramid: (x: number, y: number) => boolean;
   palettes: PaletteLibrary;
 };
 ```
+
+`isPyramid(x, y)` reports whether a cell is a real physical pyramid — false
+for cells inside the top-center notch. Modules that scan the full rectangle
+or do wrap-around/spawn logic should check it.
 
 The context should make experimentation fast without forcing every module to
 reimplement common tools.
@@ -423,7 +436,7 @@ feature.
 MVP requirements:
 
 - browser-based realtime preview
-- fixed 68 x 44 RGB framebuffer
+- fixed 69 x 45 RGB framebuffer (notched, 3000 real pyramids)
 - crisp nearest-neighbor renderer
 - 1920 x 1080 full-grid fit output mode
 - module registry

@@ -13,8 +13,10 @@ function index(x: number, y: number, width: number) {
 function randomize(ctx: Parameters<NonNullable<PixelModule["init"]>>[0], density: number) {
   grid = new Uint8Array(ctx.width * ctx.height);
   next = new Uint8Array(ctx.width * ctx.height);
-  for (let i = 0; i < grid.length; i += 1) {
-    grid[i] = ctx.random.chance(density) ? 1 : 0;
+  for (let y = 0; y < ctx.height; y += 1) {
+    for (let x = 0; x < ctx.width; x += 1) {
+      grid[index(x, y, ctx.width)] = ctx.isPyramid(x, y) && ctx.random.chance(density) ? 1 : 0;
+    }
   }
 }
 
@@ -39,12 +41,17 @@ export const conwayModule: PixelModule = {
 
     for (let y = 0; y < ctx.height; y += 1) {
       for (let x = 0; x < ctx.width; x += 1) {
+        if (!ctx.isPyramid(x, y)) {
+          next[index(x, y, ctx.width)] = 0;
+          continue;
+        }
         let neighbors = 0;
         for (let yy = -1; yy <= 1; yy += 1) {
           for (let xx = -1; xx <= 1; xx += 1) {
             if (xx === 0 && yy === 0) continue;
             const nx = (x + xx + ctx.width) % ctx.width;
             const ny = (y + yy + ctx.height) % ctx.height;
+            if (!ctx.isPyramid(nx, ny)) continue;
             neighbors += grid[index(nx, ny, ctx.width)];
           }
         }

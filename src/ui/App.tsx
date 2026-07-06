@@ -1,12 +1,17 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Maximize2, Minimize2, Pause, Play, Pointer, RotateCcw } from "lucide-react";
+import { Maximize2, Minimize2, Pause, Play, Pointer, RotateCcw, Square, Video } from "lucide-react";
 import { Engine } from "../engine/Engine";
 import { starterModules } from "../engine/modules";
 import { ParameterValues } from "../engine/parameters";
 import { CanvasRenderer } from "../renderer/CanvasRenderer";
+import { renderModuleToMp4 } from "../export/videoExport";
 import { ModuleBrowser } from "./ModuleBrowser";
 import { ParameterPanel } from "./ParameterPanel";
 import { StatusBar } from "./StatusBar";
+
+const exportFps = 30;
+
+type ExportState = "idle" | "rendering" | "encoding" | "done" | "error";
 
 type CornerName = "topLeft" | "topRight" | "bottomRight" | "bottomLeft";
 type ProjectionCorner = { x: number; y: number };
@@ -128,6 +133,12 @@ export function App() {
   const [projectionEditing, setProjectionEditing] = useState(false);
   const [projectionCorners, setProjectionCorners] = useState<ProjectionCorners>(loadProjectionCorners);
   const [outputBounds, setOutputBounds] = useState<OutputBounds>({ width: 0, height: 0 });
+  const [exportDuration, setExportDuration] = useState(10);
+  const [exportWidth, setExportWidth] = useState(1920);
+  const [exportHeight, setExportHeight] = useState(1080);
+  const [exportState, setExportState] = useState<ExportState>("idle");
+  const [exportProgress, setExportProgress] = useState(0);
+  const exportAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let animationFrame = 0;
@@ -226,6 +237,67 @@ export function App() {
     setParameters({ ...engine.parameters });
   }
 
+  async function startExport() {
+    if (exportState === "rendering" || exportState === "encoding") return;
+
+    const controller = new AbortController();
+    exportAbortRef.current = controller;
+    setExportProgress(0);
+    setExportState("rendering");
+
+    try {
+      const blob = await renderModuleToMp4({
+        modules: starterModules,
+        moduleId: activeId,
+        parameters,
+        durationSeconds: exportDuration,
+        fps: exportFps,
+        width: exportWidth,
+        height: exportHeight,
+        signal: controller.signal,
+        onProgress: (progress) => {
+          if (progress.phase === "rendering") {
+            setExportState("rendering");
+            setExportProgress(progress.frame / progress.totalFrames);
+          } else {
+            setExportState("encoding");
+            setExportProgress(progress.progress);
+          }
+        },
+      });
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${activeId}-${exportWidth}x${exportHeight}-${exportDuration}s.mp4`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      setExportState("done");
+      setTimeout(() => setExportState((current) => (current === "done" ? "idle" : current)), 3000);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setExportState("idle");
+      } else {
+        console.error(error);
+        setExportState("error");
+      }
+    } finally {
+      exportAbortRef.current = null;
+    }
+  }
+
+  function cancelExport() {
+    exportAbortRef.current?.abort();
+  }
+
+  function exportStatusLabel(): string {
+    if (exportState === "rendering") return `Rendering ${Math.round(exportProgress * 100)}%`;
+    if (exportState === "encoding") return `Encoding ${Math.round(exportProgress * 100)}%`;
+    if (exportState === "error") return "Export failed";
+    return "";
+  }
+
   async function toggleFullscreen() {
     if (document.fullscreenElement === outputPreview.current) {
       await document.exitFullscreen();
@@ -276,7 +348,7 @@ export function App() {
       <header className="topbar">
         <div>
           <h1>PLAY/BRAIN Pixel Engine</h1>
-          <p>Modular procedural pixel animation for a 68 x 44 RGB square matrix.</p>
+          <p>Modular procedural pixel animation for a 69 x 45 RGB pyramid matrix.</p>
         </div>
         <div className="transport">
           <button aria-label={running ? "Pause animation" : "Play animation"} onClick={() => setRunning((value) => !value)} type="button">
@@ -285,6 +357,54 @@ export function App() {
           <button aria-label="Restart active module" onClick={restartModule} type="button">
             <RotateCcw size={18} />
           </button>
+
+          <div className="export-controls">
+            <label>
+              <span>Seconds</span>
+              <input
+                disabled={exportState === "rendering" || exportState === "encoding"}
+                min={1}
+                max={600}
+                onChange={(event) => setExportDuration(Number(event.target.value))}
+                type="number"
+                value={exportDuration}
+              />
+            </label>
+            <label>
+              <span>Width</span>
+              <input
+                disabled={exportState === "rendering" || exportState === "encoding"}
+                min={2}
+                onChange={(event) => setExportWidth(Number(event.target.value))}
+                type="number"
+                value={exportWidth}
+              />
+            </label>
+            <label>
+              <span>Height</span>
+              <input
+                disabled={exportState === "rendering" || exportState === "encoding"}
+                min={2}
+                onChange={(event) => setExportHeight(Number(event.target.value))}
+                type="number"
+                value={exportHeight}
+              />
+            </label>
+
+            {exportState === "rendering" || exportState === "encoding" ? (
+              <>
+                <span className="export-status">{exportStatusLabel()}</span>
+                <button aria-label="Cancel export" onClick={cancelExport} title="Cancel export" type="button">
+                  <Square size={16} />
+                </button>
+              </>
+            ) : (
+              <button aria-label="Export MP4" onClick={startExport} title="Export MP4" type="button">
+                <Video size={18} />
+              </button>
+            )}
+            {exportState === "error" ? <span className="export-status export-status-error">{exportStatusLabel()}</span> : null}
+          </div>
         </div>
       </header>
 
@@ -294,16 +414,16 @@ export function App() {
         <section className="stage">
           <div className="stage-header">
             <span>{engine.active.name}</span>
-            <strong>Full 68 x 44 output</strong>
+            <strong>Full 69 x 45 output</strong>
           </div>
 
           <div className="preview-stack">
             <section className="preview-block">
               <div className="preview-title">
                 <span>Logical Preview</span>
-                <small>Full 68 x 44 grid, integer scaled</small>
+                <small>Full 69 x 45 grid, integer scaled</small>
               </div>
-              <canvas ref={previewCanvas} width={1020} height={660} />
+              <canvas ref={previewCanvas} width={1035} height={675} />
             </section>
 
             <section className="preview-block output-preview" ref={outputPreview}>

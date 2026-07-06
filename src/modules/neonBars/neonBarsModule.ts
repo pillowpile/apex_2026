@@ -1,20 +1,17 @@
 import { RGB } from "../../engine/Framebuffer";
 import { PixelModule } from "../../engine/types";
+import { palettes } from "../../palettes/palettes";
+import { sampleGradient } from "../../utilities/color";
 
-const stripeColors: RGB[] = [
-  [0, 216, 255],
-  [255, 42, 145],
-  [255, 232, 30],
-  [24, 224, 80],
-  [255, 90, 40],
-  [92, 68, 255],
-  [255, 255, 248],
-  [0, 178, 152],
-  [255, 58, 70],
-  [174, 255, 42],
-  [26, 108, 255],
-  [255, 151, 28],
-];
+const STRIPE_COUNT = 12;
+
+function buildStripeColors(colors: RGB[]): RGB[] {
+  const stripes: RGB[] = [];
+  for (let i = 0; i < STRIPE_COUNT; i += 1) {
+    stripes.push(sampleGradient(colors, i / (STRIPE_COUNT - 1)));
+  }
+  return stripes;
+}
 
 const dropoutColors: RGB[] = [
   [2, 4, 8],
@@ -41,13 +38,15 @@ function scaleColor(color: RGB, amount: number): RGB {
 
 function setWrappedSegment(
   framebuffer: Parameters<PixelModule["render"]>[0],
+  ctx: Parameters<PixelModule["render"]>[1],
   y: number,
   start: number,
   length: number,
   color: RGB,
 ) {
   for (let step = 0; step < length; step += 1) {
-    framebuffer.setPixel(wrap(start + step, framebuffer.width), y, color);
+    const x = wrap(start + step, framebuffer.width);
+    if (ctx.isPyramid(x, y)) framebuffer.setPixel(x, y, color);
   }
 }
 
@@ -69,8 +68,11 @@ export const neonBarsModule: PixelModule = {
     jitter: { type: "number", label: "Jitter", min: 0, max: 9, step: 0.1, default: 2.4 },
     colorCycle: { type: "number", label: "Color Cycle", min: 0, max: 3, step: 0.01, default: 0.42 },
     brightness: { type: "number", label: "Brightness", min: 0.25, max: 1.4, step: 0.01, default: 1 },
+    palette: { type: "palette", label: "Palette", default: "vivid" },
   },
   render(framebuffer, ctx, params) {
+    const palette = palettes[String(params.palette) as keyof typeof palettes] ?? palettes.vivid;
+    const stripeColors = buildStripeColors(palette.colors);
     const motion = String(params.motion);
     const speed = Number(params.speed);
     const bandHeight = Math.max(1, Math.round(Number(params.bandHeight)));
@@ -99,7 +101,8 @@ export const neonBarsModule: PixelModule = {
       const rowOffset = Math.round(slide + ripple + glitch);
 
       for (let x = 0; x < ctx.width; x += 1) {
-        framebuffer.setPixel(wrap(x + rowOffset, ctx.width), y, rowColor);
+        const wrappedX = wrap(x + rowOffset, ctx.width);
+        if (ctx.isPyramid(wrappedX, y)) framebuffer.setPixel(wrappedX, y, rowColor);
       }
 
       for (let segment = 0; segment < segments; segment += 1) {
@@ -111,7 +114,7 @@ export const neonBarsModule: PixelModule = {
         const length = Math.max(1, Math.round((2 + hash(seed + 5) * 13) * gapScale));
         const color = dropoutColors[Math.floor(hash(seed + 17) * dropoutColors.length)];
 
-        setWrappedSegment(framebuffer, y, start, length, color);
+        setWrappedSegment(framebuffer, ctx, y, start, length, color);
       }
     }
   },

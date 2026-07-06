@@ -5,12 +5,13 @@ import { Noise } from "../utilities/noise";
 import { Random } from "../utilities/random";
 
 export type ModuleContext = {
-  width: 68;
-  height: 44;
+  width: 69;
+  height: 45;
   time: number;
   frame: number;
   random: Random;
   noise: Noise;
+  isPyramid: (x: number, y: number) => boolean;
   palettes: PaletteLibrary;
 };
 
