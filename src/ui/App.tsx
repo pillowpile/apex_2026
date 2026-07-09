@@ -139,6 +139,8 @@ export function App() {
   const [exportState, setExportState] = useState<ExportState>("idle");
   const [exportProgress, setExportProgress] = useState(0);
   const exportAbortRef = useRef<AbortController | null>(null);
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  const [shuffleMinutes, setShuffleMinutes] = useState(5);
 
   useEffect(() => {
     let animationFrame = 0;
@@ -197,6 +199,16 @@ export function App() {
   useEffect(() => {
     window.localStorage.setItem(projectionStorageKey, JSON.stringify(projectionCorners));
   }, [projectionCorners]);
+
+  useEffect(() => {
+    if (!shuffleEnabled) return;
+    const timeout = setTimeout(() => {
+      const candidates = starterModules.filter((module) => module.id !== engine.active.id);
+      const next = candidates[Math.floor(Math.random() * candidates.length)];
+      if (next) selectModule(next.id);
+    }, shuffleMinutes * 60 * 1000);
+    return () => clearTimeout(timeout);
+  }, [shuffleEnabled, shuffleMinutes, activeId]);
 
   useEffect(() => {
     const frame = outputCanvasFrame.current;
@@ -357,6 +369,27 @@ export function App() {
           <button aria-label="Restart active module" onClick={restartModule} type="button">
             <RotateCcw size={18} />
           </button>
+
+          <div className="shuffle-controls">
+            <label>
+              <input
+                checked={shuffleEnabled}
+                onChange={(event) => setShuffleEnabled(event.target.checked)}
+                type="checkbox"
+              />
+              <span>Shuffle</span>
+            </label>
+            <label>
+              <input
+                max={60}
+                min={1}
+                onChange={(event) => setShuffleMinutes(Math.max(1, Math.min(60, Number(event.target.value))))}
+                type="number"
+                value={shuffleMinutes}
+              />
+              <span>min</span>
+            </label>
+          </div>
 
           <div className="export-controls">
             <label>
