@@ -79,6 +79,38 @@ p {
   border-color: #6fd0bd;
 }
 
+.shuffle-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 10px;
+  padding-left: 10px;
+  border-left: 1px solid #24302b;
+}
+
+.shuffle-controls label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #aeb9b2;
+}
+
+.shuffle-controls input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #6fd0bd;
+}
+
+.shuffle-controls input[type="number"] {
+  width: 48px;
+  padding: 5px 6px;
+  border: 1px solid #34423c;
+  border-radius: 6px;
+  background: #151b19;
+  color: inherit;
+}
+
 .export-controls {
   display: flex;
   align-items: center;
