@@ -84,9 +84,9 @@ export const polkaModule: PixelModule = {
     speed: { type: "number", label: "Speed", min: 0, max: 3, step: 0.05, default: 1 },
     colorShift: { type: "number", label: "Color Shift", min: 0, max: 2, step: 0.05, default: 0.3 },
     gravity: { type: "number", label: "Gravity", min: 0, max: 3, step: 0.05, default: 0 },
-    collision: { type: "boolean", label: "Collision", default: false },
+    collision: { type: "boolean", label: "Collision", default: true },
     style: { type: "select", label: "Style", options: ["mixed", "filled", "rings"], default: "mixed" },
-    background: { type: "color", label: "Background", default: "#0a0a14" },
+    background: { type: "color", label: "Background", default: "#ffffff" },
     palette: { type: "palette", label: "Palette", default: "colorful" },
   },
   init(ctx, params) {
